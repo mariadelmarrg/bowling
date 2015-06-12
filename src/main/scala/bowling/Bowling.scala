@@ -1,14 +1,23 @@
 package bowling
 
+import bowling.Frame._
+
 case class Frame(firstBall: Int, secondBall: Option[Int] = None, isBonus: Boolean = false) {
+
   def score = firstBall + secondBall.getOrElse(0)
-  def isStrike = firstBall == 10 && secondBall.isEmpty
-  def isSpare = secondBall.isDefined && score == 10
+
+  def isStrike = firstBall == MAX_POINTS_FRAME && secondBall.isEmpty
+
+  def isSpare = secondBall.isDefined && score == MAX_POINTS_FRAME
+}
+
+object Frame {
+  val MAX_POINTS_FRAME = 10
 }
 
 object Bowling {
 
-  def calculateScore(input: String) : Int = {
+  def calculateScore(input: String): Int = {
     val normalAndBonusFrames: Array[String] = input.split("\\|\\|")
     val normalFrames = normalAndBonusFrames(0).split('|')
     val bonusFrame = if (normalAndBonusFrames.length == 2) Seq(buildFrame(normalAndBonusFrames(1)).copy(isBonus = true)) else Seq()
@@ -30,14 +39,14 @@ object Bowling {
 
     frame match {
       case STRIKE =>
-        Frame(10, None)
+        Frame(MAX_POINTS_FRAME, None)
       case TWO_STRIKES_IN_BONUS =>
-        Frame(10, Some(10))
+        Frame(MAX_POINTS_FRAME, Some(MAX_POINTS_FRAME))
       case MISS_TWO_BALLS =>
         Frame(0, Some(0))
       case SPARE(firstBall, secondBall) =>
         val firstBallPins = toInt(firstBall, 0)
-        val secondBallPins = 10 - firstBallPins
+        val secondBallPins = MAX_POINTS_FRAME - firstBallPins
         Frame(firstBallPins, Some(secondBallPins))
       case MISS_SECOND_BALL(value) =>
         Frame(toInt(value, 0), Some(0))
@@ -50,18 +59,18 @@ object Bowling {
 
   private def calculate(frames: List[Frame]): Int = {
     frames match {
-      case frame:: Nil if frame.isBonus =>
+      case f :: Nil if f.isBonus =>
         0
-      case frame :: Nil =>
-        frame.score
-      case frame1 :: frame2 :: otherFrames if frame1.isSpare =>
-        frame1.score + frame2.firstBall + calculate(frame2 :: otherFrames)
-      case frame1 :: frame2 :: otherFrames if frame1.isStrike && frame2.secondBall.isDefined =>
-        frame1.score + frame2.score + calculate(frame2 :: otherFrames)
-      case frame1 :: frame2 :: frame3 :: otherFrames if frame1.isStrike && frame2.secondBall.isEmpty =>
-        frame1.score + frame2.firstBall + frame3.firstBall + calculate(frame2 :: frame3 :: otherFrames)
-      case frame1 :: otherFrames =>
-        frame1.score + calculate(otherFrames)
+      case f :: Nil =>
+        f.score
+      case f1 :: f2 :: fs if f1.isSpare =>
+        f1.score + f2.firstBall + calculate(frames.tail)
+      case f1 :: (f2@Frame(_, Some(_), _)) :: fs if f1.isStrike =>
+        f1.score + f2.score + calculate(frames.tail)
+      case f1 :: (f2@Frame(_, None, _)) :: f3 :: fs if f1.isStrike =>
+        f1.score + f2.firstBall + f3.firstBall + calculate(frames.tail)
+      case f1 :: fs =>
+        f1.score + calculate(frames.tail)
     }
   }
 
